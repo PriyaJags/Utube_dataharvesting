@@ -13,18 +13,8 @@ youtube = googleapiclient.discovery.build(
 
 # MongoDB connection
 client = pymongo.MongoClient("mongodb://localhost:27017/")
-mydb = client["Your_db_name"]
+mydb = client["ur_Youtube_data"]
 mycol = mydb["Channels_info"]
-
-# PostgreSQL connection
-postgres_conn = psycopg2.connect(
-    database="youtube_data",
-    user="postgres",
-    password="password",
-    host="localhost",
-    port="5432"
-)
-postgres_cursor = postgres_conn.cursor()
 
 def main():
     channel_id_sql = ''#for sql insertion
@@ -93,7 +83,9 @@ def main():
     '9. What is the average duration of all videos in each channel, and what are their corresponding channel names?',
     '10 Which videos have the highest number of comments, and what are their corresponding channel names?',
     )
-
+    postgres_conn = psycopg2.connect(database="youtube_data", user="postgres",
+                                     password="password", host="localhost", port="5432")
+    postgres_cursor = postgres_conn.cursor()
     sql_queries=st.selectbox('SQL queries',queries_list,index=None,placeholder="choose your query:",)
     if sql_queries=='1. What are the names of all the videos and their corresponding channels?':
         query1="select video_name,channel_name from videos"
@@ -213,6 +205,7 @@ def video_details(channel_id):
         part="snippet,contentDetails,statistics",
         id=channel_id
     )
+    video_ids = []
     channel_res = channel_req.execute()
     ch_playlist_id = channel_res["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
     next_page_token = None
@@ -224,13 +217,15 @@ def video_details(channel_id):
             pageToken=next_page_token
         )
         video_res = video_req.execute()
-        video_ids = []
+        # video_ids = []
         for i in range(len(video_res['items'])):
             video_ids.append(video_res['items'][i]['snippet']['resourceId']['videoId'])
 
         next_page_token = video_res.get('nextPageToken')
         if next_page_token is None:
             break
+    print("videoids=",video_ids)
+    print(len(video_ids))
     return video_ids
 
 #getting all video details for all the video ids
@@ -290,6 +285,9 @@ def comments_details(video_ids):
 
 #Channel Table creation if not exists and insertion into postgresSQL
 def ch_sql_insert(channel_id):
+    postgres_conn = psycopg2.connect(database="youtube_data", user="postgres",
+                                     password="password", host="localhost", port="5432")
+    postgres_cursor = postgres_conn.cursor()
     msg_ch_tab,msg_ch='',''
     try:
         create_query = '''create table if not exists
@@ -332,6 +330,9 @@ def ch_sql_insert(channel_id):
 
 # For videos table creation and insertion
 def vid_sql_insert(channel_id):
+    postgres_conn = psycopg2.connect(database="youtube_data", user="postgres",
+                                     password="password", host="localhost", port="5432")
+    postgres_cursor = postgres_conn.cursor()
     msg_vid_tab, msg_vid = '', ''
     try:
         create_vid_tab_query = '''create table if not exists videos
@@ -388,6 +389,9 @@ def vid_sql_insert(channel_id):
 
 # For comments table creation and insertion
 def com_sql_insert(channel_id):
+    postgres_conn = psycopg2.connect(database="youtube_data", user="postgres",
+                                     password="password", host="localhost", port="5432")
+    postgres_cursor = postgres_conn.cursor()
     msg_com_tab, msg_com = '', ''
     try:
         create_com_tab_query = '''create table if not exists comments
