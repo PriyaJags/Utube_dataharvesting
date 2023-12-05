@@ -224,8 +224,7 @@ def video_details(channel_id):
         next_page_token = video_res.get('nextPageToken')
         if next_page_token is None:
             break
-    print("videoids=",video_ids)
-    print(len(video_ids))
+    
     return video_ids
 
 #getting all video details for all the video ids
