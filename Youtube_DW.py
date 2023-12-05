@@ -3,7 +3,6 @@ import pymongo
 import psycopg2
 import streamlit as st
 import pandas as pd
-import re
 
 # Api key connection
 api_service_name = "youtube"
@@ -15,47 +14,30 @@ youtube = googleapiclient.discovery.build(
 # MongoDB connection
 client = pymongo.MongoClient("mongodb://localhost:27017/")
 mydb = client["Your_db_name"]
-mycol = mydb["your_Channels_info"]
+mycol = mydb["Channels_info"]
 
 # PostgreSQL connection
 postgres_conn = psycopg2.connect(
-    database="your_db_name",
-    user="user",
+    database="youtube_data",
+    user="postgres",
     password="password",
     host="localhost",
     port="5432"
 )
 postgres_cursor = postgres_conn.cursor()
 
-#Channel Id entry validation
-def validate_input(text):
-    # Check if input is not empty
-    if not text:
-        st.warning("Input cannot be empty.")
-        return False
-    if len(text) != 24:  # Check for 24 characters
-        st.warning("please enter valid channel ID")
-        return False
-        # Check if input matches the pattern: 'UC' followed by alphanumeric, hyphens, or underscores
-    if not re.match(r'^UC[\w\-]+$', text):
-        st.warning("Input should start with 'UC' and contain only alphanumeric, hyphens, or underscores.")
-        return False
-        # If all conditions pass, input is valid
-    return True
-
 def main():
     channel_id_sql = ''#for sql insertion
 
     with st.sidebar:# streamlit side bar
         st.title(":red[YOUTUBE DATA HARVESTING AND WAREHOUSING]")
-        st.markdown("#### :blue[Domain] : Social Media")
-        st.markdown("#### :blue[Technologies used] : Python, MongoDB, API Integration, PostgreSQL, Streamlit")
-        st.markdown( "#### :blue[Overview] : Retrieving the Youtube channels data from the Google API, storing it in a MongoDB as data lake, migrating and transforming data into a SQL database, then querying the data and displaying it in the Streamlit app.")
+        st.markdown("##### :blue[Domain] : Social Media")
+        st.markdown("##### :blue[Technologies used] : Python, MongoDB, API Integration, PostgreSQL, Streamlit")
+        st.markdown( "##### :blue[Overview] : Retrieving the Youtube channels data from the Google API, storing it in a MongoDB as data lake, migrating and transforming data into a SQL database, then querying the data and displaying it in the Streamlit app.")
 
     channel_id = st.text_input('Enter the Channel Id:')
     mn_button_clicked = st.button('Collect and Store')
     if mn_button_clicked:
-        if validate_input(channel_id):
             ch_ids=[]
             for ch_data in mycol.find({},{"Channel_information":1}):
                 ch_ids.append(ch_data["Channel_information"]["Channel_Id"])
@@ -66,19 +48,19 @@ def main():
             else:#if all validations are satisfied
                 # getting or scrapping data from youtube for the entered channel id
                 channel_dict = channel_details(channel_id)
-                if channel_dict is not None and bool(channel_dict):# Dictionary is not None and is not empty
-                    video_ids = video_details(channel_id)
-                    video_dict_list = video_dict_details(video_ids)
-                    comments_dict_list = comments_details(video_ids)
-                    # channel dictionary creation
-                    final_channel_dict = {"Channel_information": channel_dict,
-                                          "Video_details": video_dict_list,
-                                          "Comments_details": comments_dict_list}
-                    # insert into mongo db
-                    mn_insert_success = mongodb_insert(final_channel_dict)
-                    st.success(mn_insert_success)
-                else:
-                    st.success('invalid channel id')
+                # if channel_dict is not None and bool(channel_dict):# Dictionary is not None and is not empty
+                video_ids = video_details(channel_id)
+                video_dict_list = video_dict_details(video_ids)
+                comments_dict_list = comments_details(video_ids)
+                # channel dictionary creation
+                final_channel_dict = {"Channel_information": channel_dict,
+                                      "Video_details": video_dict_list,
+                                      "Comments_details": comments_dict_list}
+                # insert into mongo db
+                mn_insert_success = mongodb_insert(final_channel_dict)
+                st.success(mn_insert_success)
+                # else:
+                #     st.success('invalid channel id')
 
     # migrating data to sql
     # Create a dropdown with channel names options from mongodb
@@ -96,8 +78,8 @@ def main():
         msg3, msg4 =vid_sql_insert(channel_id_sql)
         msg5, msg6 =com_sql_insert(channel_id_sql)
         st.success(msg2)
-        st.success(msg4)
-        st.success(msg6)
+        # st.success(msg4)
+        # st.success(msg6)
 
     # sql queries dropdown
     queries_list=('1. What are the names of all the videos and their corresponding channels?',
@@ -335,15 +317,17 @@ def ch_sql_insert(channel_id):
 
         # Define your SQL query
             sql_ch_query = '''INSERT INTO channels(channel_id, Channel_name,
-                                        subscribers,Views,total_videos ,Channel_Description ,Playlist_id)
+                                        subscribers,total_videos ,Views,Channel_Description ,Playlist_id)
                             VALUES (%s,%s,%s,%s,%s,%s,%s)'''
             try:
                 # Execute the SQL query
                 postgres_cursor.execute(sql_ch_query, sql_ch_data)
-                msg_ch = "Channels are successfully inserted"
+                # msg_ch = "Channel are successfully inserted"
+                msg_ch = "Tables are successfully updated"
                 postgres_conn.commit()
             except:
-               msg_ch="Channels are already inserted"
+               # msg_ch="Channels are already inserted"
+                msg_ch = "Tables are already inserted"
     return msg_ch_tab,msg_ch
 
 # For videos table creation and insertion
